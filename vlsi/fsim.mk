@@ -40,9 +40,14 @@ endif
 	for x in $$(cat $(VLSI_RTL)); do \
 		echo '    - "'$$x'"' >> $@; \
 	done
+ifeq ($(FAULT_MODEL),sdf)
+# This can be redefined, depending on the needs
+	echo "  timescale: '1ns/1fs'" >> $@
+else
 	echo "  timescale: '1ns/10ps'" >> $@
+endif 
 	echo "  options:" >> $@
-	for x in $(filter-out -f $(sim_common_files),$(VCS_NONCC_OPTS)); do \
+	for x in $(filter-out -f $(sim_common_files) -timescale=1ns/10ps,$(VCS_NONCC_OPTS)); do \
 		echo '    - "'$$x'"' >> $@; \
 	done
 	echo "  options_meta: 'append'" >> $@
