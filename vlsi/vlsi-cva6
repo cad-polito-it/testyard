@@ -57,6 +57,13 @@ def dont_touch_srams(x: HammerTool) -> bool:
     
     return True
 
+def connect_clk_en_reg(x: HammerTool) -> bool:
+    if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
+        x.append("set test_fix_bus true")
+        if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
+            x.append("disconnect_net [all_connected clock_en_reg/RESET] clock_en_reg/RESET")
+            x.append("connect_pin -from [get_nets n_debug_reset_syncd_debug_reset_sync_io_q ] -to clock_en_reg/RESET ")
+    return True
 
 def set_false_path(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
@@ -109,6 +116,8 @@ def insert_internal_memory_collar(x: HammerTool) -> bool:
                                             "\"*hpdcahce_sram_1rw*\"",
                                             "\"*hpdcache_sram_wmask_1rw*\"",
                                            ]))   
+    if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
+        x.append("identify_clock_gating")
     return True
 
 
@@ -218,6 +227,7 @@ class ExampleDriver(CLIDriver):
             HammerTool.make_post_insertion_hook("init_environment", add_options),
             HammerTool.make_post_insertion_hook("elaborate_design", dont_touch_srams),
             HammerTool.make_post_insertion_hook("apply_constraints", set_false_path),
+            HammerTool.make_pre_insertion_hook("configure_dft", connect_clk_en_reg),
             HammerTool.make_post_insertion_hook("configure_dft", connect_test_mode_signals),
             HammerTool.make_post_insertion_hook("configure_dft", insert_internal_memory_collar)
         ]
