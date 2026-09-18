@@ -5,7 +5,7 @@ vlsi.core.max_threads: 12
 
 # Specify clock signals
 vlsi.inputs.clocks: [
-  {name: "clock_uncore", period: "1ns", uncertainty: "0.01ns"}
+  {name: "clock_uncore", period: "1ns", uncertainty: "0.001ns"}
 ]
 
 vlsi.inputs.resets: [
