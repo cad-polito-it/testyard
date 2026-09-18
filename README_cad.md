@@ -1,6 +1,6 @@
 # Table of Contents
 - [Table of Contents](#table-of-contents)
-- [Setup instruction for chipyard and hammer for the CAD's servers](#setup-instruction-for-chipyard-and-hammer-for-the-cads-servers)
+- [Setup instruction for testyard and hammer for the CAD's servers](#setup-instruction-for-testyard-and-hammer-for-the-cads-servers)
 - [Compile the tests](#compile-the-tests)
   - [Compiling additional tests (SBSTs)](#compiling-additional-tests-sbsts)
 - [Simulating the RTL](#simulating-the-rtl)
@@ -26,12 +26,12 @@
 
 ---
 
-# Setup instruction for chipyard and hammer for the CAD's servers
-This is a guide for using the designs in the chipyard framework and synthesize them using a custom library.
+# Setup instruction for testyard and hammer for the CAD's servers
+This is a guide for using the designs in the testyard framework and synthesize them using a custom library.
 
 > **_NOTE:_** We DO NOT CARE  about the PAR (Place and Route) since it is not the focus of our research. Thus, those flows may not work (we try our best, as always).
 
-In order to setup the environment for running chipyard (simulation and synthesis) you need to obseerve the following steps:
+In order to setup the environment for running testyard (simulation and synthesis) you need to obseerve the following steps:
 
 In the following ``git clone`` commands, it is assumed that SSH-keys are configured. If you just want to use the repositories, please substitute every ``git clone git@github.com:cad-polito-it/REPO_TO_DOWNLOAD.git`` with ``git clone https://github.com/cad-polito-it/REPO_TO_DOWNLOAD``.
 
@@ -51,30 +51,30 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
     ```bash
     export PATH=${PATH}:${HOME}/miniconda3/bin/                                    
     ```
-3. Download the chipyard repository  
+3. Download the testyard repository  
     ```bash 
-    $ git clone git@github.com:cad-polito-it/chipyard.git
-    $ cd chipyard
+    $ git clone git@github.com:cad-polito-it/testyard.git
+    $ cd testyard
     $ git checkout working/cad_servers
     ```
 
-4. Install the neeeded tools for chipyard by running 
+4. Install the neeeded tools for testyard by running 
     ```bash 
-    $ cd chipyard 
+    $ cd testyard 
     $ ./scripts/build-setup.sh riscv-tools -s 6 -s 7 -s 8 -s 9 
     ```
     You do not need all the tools, just the basic ones and converters from chisel to verilog.
 
     **It may take a while** 
 
-    **Now you can activate your conda environment by sourcing the env.sh file in the chipyard folder**
+    **Now you can activate your conda environment by sourcing the env.sh file in the testyard folder**
 
 
 5. Download the OpenRoad repository for generating technology-related rams 
     ```bash 
     cd ~
     git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git 
-    echo "export OPENROAD=~/OpenROAD" >> ~/chipyard/env.sh
+    echo "export OPENROAD=~/OpenROAD" >> ~/testyard/env.sh
     conda create -c litex-hub --prefix ~/.conda-openroad openroad=2.0_7070_g0264023b6
     conda create -c litex-hub --prefix ~/.conda-klayout klayout=0.28.5_98_g87e2def28
     conda create -c litex-hub --prefix ~/.conda-signoff magic=8.3.376_0_g5e5879c netgen=1.5.250_0_g178b172
@@ -100,7 +100,7 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
     **This is a hard hack for the moment**
 6. Install and use the specific patched hammer version (**IMPORTANT**):
    ```bash 
-    cd chipyard/vlsi/
+    cd testyard/vlsi/
     ./install_plugins.sh hammer_root_dir
     ```
     
@@ -108,7 +108,7 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
     Either the `gdstk` or `gdspy` GDS manipulation utility is required for 4x database downscaling. `gdstk` (available [here on GitHub](https://github.com/heitzmann/gdstk), version >0.6) is highly recommended; however, because it is more difficult to install, `gdspy` (available [here on Github](https://github.com/heitzmann/gdspy/releases), specifically version 1.4 can also be used instead, but it is much slower.
     You can install `gdstk` as following:
     ```bash 
-    $ cd chipyard 
+    $ cd testyard 
     $ source env.sh 
     $ conda install conda-forge::gdstk
     ```
@@ -155,7 +155,8 @@ Please refer to: [Hammer Docs](https://hammer-vlsi.readthedocs.io/)
 # Compile the tests
 For compiling a set of hello world applications:
 
-```bash /home/f.angione/chipyard/vlsi/generated-src/chipyard.harness.TestHarnes
+```bash
+$ cd testyard
 $ cd tests
 $ cmake .
 $ make 
@@ -180,7 +181,7 @@ $ make sbst1
 You will find the executable in ``tests/sbst1/`` named ``sbst1.riscv``
 
 # Simulating the RTL 
-For running a simulation for a given configuration in [``variables.mk``](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/variables.mk) and a specified program (BINARY var points to the compiled program) from tests folder:
+For running a simulation for a given configuration in [``variables.mk``](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/variables.mk) and a specified program (BINARY var points to the compiled program) from tests folder:
 ```bash 
 $ cd sims/vcs
 $ make verilog CONFIG=SmallBoomV3Config
@@ -190,7 +191,7 @@ It generates the verilog file and run the binary
 
 # Synthesis 
 
-For generating the files for the synthesis using the technology and deesign files defined in [``benchmarks.mk``](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/vlsi/benchmarks.mk) file:
+For generating the files for the synthesis using the technology and deesign files defined in [``benchmarks.mk``](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/vlsi/benchmarks.mk) file:
 ```bash 
 $ cd vlsi
 $ make buildfile benchmark=rocket
@@ -260,7 +261,7 @@ Given a RISC-V ELF/binary and a label substring, it:
 
 Example:
 ```bash
-$ cd chipyard
+$ cd testyard
 $ python3 vlsi/fsim/strobe/find_main.py tests/hello.riscv main
 ```
 
@@ -306,8 +307,8 @@ $ make fsim-syn benchmark=rocket BINARY=${TEST_PATH} LOADMEM=${TEST_PATH} STANDA
 
 You can increase the timeout cycles by setting the ``TIMEOUT_CYCLES=xx`` in the CLI (as for the ``CLOCK_PERIOD``). 
 Their default values are:
-* ``TIMEOUT_CYCLES=10000000`` in [./variables.mk](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/variables.mk)
-* ``CLOCK_PERIOD=1`` nanosecond in  [./sims/common-sim-flags.mk](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/sims/common-sim-flags.mk)
+* ``TIMEOUT_CYCLES=10000000`` in [./variables.mk](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/variables.mk)
+* ``CLOCK_PERIOD=1`` nanosecond in  [./sims/common-sim-flags.mk](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/sims/common-sim-flags.mk)
 
 You can use a custom TCL script for your fault simulation campaign, for example:
 ```bash
@@ -360,7 +361,7 @@ $ make fsim \
 
 # ATPG (Automatic Test Pattern Generation)
 
-For ATPG, Synopsys TestMAX is used. The ATPG flow runs on the gate-level netlist produced by synthesis. The configuration is defined in [``atpg.mk``](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/vlsi/atpg.mk) and the tool binary/version in [``example-tools.yml``](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/vlsi/example-tools.yml).
+For ATPG, Synopsys TestMAX is used. The ATPG flow runs on the gate-level netlist produced by synthesis. The configuration is defined in [``atpg.mk``](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/vlsi/atpg.mk) and the tool binary/version in [``example-tools.yml``](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/vlsi/example-tools.yml).
 
 ## Running ATPG
 For running ATPG on the post-synthesis netlist:
@@ -402,7 +403,7 @@ $ make atpg-syn benchmark=rocket PATTERNS_FILE=path/to/patterns_file FAULTS_FILE
 
 ## Configuring ATPG
 
-ATPG-related settings can be configured in [```chipyard/vlsi/example-designs/nangate45-commercial.yml```](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/vlsi/example-designs/nangate45-commercial.yml). The main options are:
+ATPG-related settings can be configured in [```testyard/vlsi/example-designs/nangate45-commercial.yml```](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/vlsi/example-designs/nangate45-commercial.yml). The main options are:
 
 ```yaml
 # Set targeted fault coverage and number of generated test patterns from atpg
@@ -456,7 +457,7 @@ make redo-fsim-syn  benchmark=boom-small BINARY=${TEST_PATH} LOADMEM=${TEST_PATH
 > **_NOTE:_** The dependancies must be present.
 
 For different benchmarks please see:
-- [./vlsi/benchmarks.mk](https://github.com/cad-polito-it/chipyard/blob/working/cad_servers/vlsi/benchmarks.mk)
+- [./vlsi/benchmarks.mk](https://github.com/cad-polito-it/testyard/blob/working/cad_servers/vlsi/benchmarks.mk)
 
 For avoiding useless RTL generation or yml generation you can set the following variables to null:
 ``bash 
