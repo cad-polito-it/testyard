@@ -76,7 +76,7 @@ class dmiCospikeCheckpointingRocketConfig extends Config(
   new chipyard.config.AbstractConfig)
 
 
-class ManyPeripheralsRocketConfig extends Config(
+class ManyPeripheralsRocketConfig2 extends Config(
   new chipyard.harness.WithI2CTiedOff ++                    // Tie off the I2C port in the harness
   new chipyard.harness.WithSimSPIFlashModel(true) ++         // add the SPI flash model in the harness (read-only)
   new chipyard.harness.WithSimBlockDevice ++                 // drive block-device IOs with SimBlockDevice
@@ -91,6 +91,16 @@ class ManyPeripheralsRocketConfig extends Config(
   new freechips.rocketchip.subsystem.WithDefaultMMIOPort ++  // add default external master port
   new freechips.rocketchip.subsystem.WithDefaultSlavePort ++ // add default external slave port
   new freechips.rocketchip.subsystem.WithNoMemPort ++        // remove AXI4 backing memory
+  new freechips.rocketchip.rocket.WithNHugeCores(1) ++
+  new chipyard.config.AbstractConfig)
+
+class ManyPeripheralsRocketConfig extends Config(
+  new chipyard.harness.WithI2CTiedOff ++                    // Tie off the I2C port in the harness
+  new chipyard.config.WithGPIO ++                           // add GPIOs to the peripherybus
+  new chipyard.config.WithI2C ++                             // Add I2C peripheral
+  new chipyard.config.WithPeripheryTimer ++                  // add the pwm timer device
+  new freechips.rocketchip.subsystem.WithDefaultMMIOPort ++  // add default external master port
+  new freechips.rocketchip.subsystem.WithDefaultSlavePort ++ // add default external slave port
   new freechips.rocketchip.rocket.WithNHugeCores(1) ++
   new chipyard.config.AbstractConfig)
 
