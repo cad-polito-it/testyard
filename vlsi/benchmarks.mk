@@ -31,7 +31,7 @@ ifeq ($(benchmark),cva6)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
     EXTRA_PREPROC_DEFINES ?=SYNTHESIS
 endif
@@ -44,7 +44,7 @@ ifeq ($(benchmark),boomv3-medium)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -56,7 +56,7 @@ ifeq ($(benchmark),boomv4-medium)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -68,7 +68,7 @@ ifeq ($(benchmark),gemmini-rocket)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -80,7 +80,7 @@ ifeq ($(benchmark),ibex)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
     EXTRA_PREPROC_DEFINES += YOSYS
 endif
@@ -93,7 +93,7 @@ ifeq ($(benchmark),fft-rocket)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -105,7 +105,7 @@ ifeq ($(benchmark),shuttle)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -117,7 +117,7 @@ ifeq ($(benchmark),multi-noc)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -129,7 +129,7 @@ ifeq ($(benchmark),rocket)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -141,14 +141,14 @@ ifeq ($(benchmark),nvdla)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
 ifeq ($(benchmark),rocket-many-peripherals)
     CONFIG            = ManyPeripheralsRocketConfig
     generated_src_name ?= generated-src-$(technology_name)
-    HAMMER_EXEC       = ./example-vlsi
+    HAMMER_EXEC       ?= ./example-vlsi
     TOOLS_CONF        ?= example-tools.yml
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
@@ -189,7 +189,7 @@ ifeq ($(benchmark),refv-vector-unit)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
@@ -201,7 +201,7 @@ ifeq ($(benchmark),dualrocket)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
