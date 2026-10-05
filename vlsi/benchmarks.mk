@@ -11,6 +11,18 @@ ifneq ($(benchmark),none)
     tech_name ?= $(technology_name)
 endif 
 
+ifeq ($(benchmark),aesrocket)    
+    CONFIG            ?= AES256ECBRocketConfig
+    generated_src_name ?= generated-src-$(technology_name)
+    HAMMER_EXEC       ?= ./example-vlsi
+    TOOLS_CONF        ?= example-tools.yml
+    TECH_CONF         ?= ./technology/$(tech_name).yml
+    FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
+    DESIGN_CONFS      ?= example-designs/$(tech_name)-$(toolchain).yml 
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
+    INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
+endif
+
 ifeq ($(benchmark),cva6)
     CONFIG            = CVA6Config
     generated_src_name ?= generated-src-$(technology_name)
