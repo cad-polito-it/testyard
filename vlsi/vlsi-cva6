@@ -3,13 +3,76 @@
 # NOTE: this ExampleDriver works for CVA6 ONLY. 
 
 import os
+import sys
 from hammer.vlsi import CLIDriver, HammerTool, HammerToolHookAction, HammerDriver
 from hammer.vlsi.cli_driver import CLIActionConfigType
+from hammer.tech.specialcells import CellType
+from hammer.logging import HammerVLSILogging
 import re
 from pathlib import Path
 
+# remove_async_reset.py lives next to this driver
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from remove_async_reset import remove_async_reset
+
 
 from typing import Dict, Callable, Optional, List, Any
+
+# Only this RTL file is converted from asynchronous to synchronous reset
+CVA6_RTL_FILE = "CVA6CoreBlackbox.preprocessed.sv"
+
+
+def convert_cva6_async_resets(driver: HammerDriver) -> None:
+    """Turn the asynchronous resets of the CVA6 RTL into synchronous ones.
+
+    The ASAP7 scan cells (SDFH*) have no reset pin, so the reset edge is removed
+    from every flip-flop sensitivity list of CVA6CoreBlackbox.preprocessed.sv and a
+    `// synopsys sync_set_reset` directive is added per module. Design Compiler
+    then builds the reset as logic in front of the scan cell D pin
+    (compile_seqmap_honor_sync_set_reset true, set in add_options).
+
+    The syn_tool is not loaded yet during the pre-run, so the file list is read
+    from the same setting the tool will use: synthesis.inputs.input_files.
+    The file is modified in place; the original is kept as *.async_reset.bak.
+    Running it again on an already converted file changes nothing.
+    """
+    log = HammerVLSILogging.context("sync-reset")
+    db = driver.database
+
+    if db.get_setting("vlsi.core.technology") != "hammer.technology.asap7":
+        return
+
+    input_files = db.get_setting("synthesis.inputs.input_files")
+    targets = [Path(f) for f in input_files if Path(f).name == CVA6_RTL_FILE]
+    if not targets:
+        log.warning(f"{CVA6_RTL_FILE} not found in synthesis.inputs.input_files, nothing converted")
+        return
+
+    for path in targets:
+        if not path.is_file():
+            log.error(f"{path} does not exist")
+            continue
+
+        src = path.read_text(encoding="utf-8")
+        new, changes, warnings = remove_async_reset(src)
+
+        for w in warnings:
+            log.warning(f"{path.name}: {w}")
+
+        if not changes:
+            log.info(f"{path.name}: no asynchronous resets found (already converted?)")
+            continue
+
+        # Keep the original, then replace the file atomically
+        backup = path.with_name(path.name + ".async_reset.bak")
+        backup.write_text(src, encoding="utf-8")
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(new, encoding="utf-8")
+        tmp.replace(path)
+
+        resets = sorted({sig for c in changes for sig in c.get("signals", [])})
+        log.info(f"{path.name}: {len(changes)} flip-flop blocks converted to synchronous reset "
+                 f"(reset signals: {', '.join(resets)}); original saved as {backup.name}")
 
 def add_options(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
@@ -296,7 +359,16 @@ class ExampleDriver(CLIDriver):
             HammerTool.make_replacement_hook("insert_dft", autofix_insert_dft),
         ]
         return extra_hooks
-    
+
+    def custom_synthesis_pre_run(self, driver: HammerDriver) -> None:
+        """Custom pre-synthesis task: async -> sync reset in the CVA6 RTL."""
+        try:
+            convert_cva6_async_resets(driver)
+        except Exception as e:
+            # Stop here: synthesizing the unconverted RTL would leave unmapped (**FFGEN**) registers
+            HammerVLSILogging.context("sync-reset").error(f"Async-to-sync reset conversion failed: {e}")
+            raise
+
     # Customized synthesis action with a combined post run step for removing empty modules and facilitates lsim and fsim
     def custom_synthesis_post_run(self, driver: HammerDriver) -> None:
         """Custom post-synthesis task (e.g., netlist modification)."""
@@ -348,10 +420,17 @@ class ExampleDriver(CLIDriver):
             # 2. Execute custom post-run logic
             self.custom_synthesis_post_run(driver)
 
+        def comined_pre_run(driver: HammerDriver) -> None:
+            # 1. Execute passed pre_run_func argument (if supplied)
+            if pre_action_func is not None:
+                pre_action_func(driver)
+
+            self.custom_synthesis_pre_run(driver)    
+
         # Delegate to super with the combined callback
         return super().create_synthesis_action(
             custom_hooks=custom_hooks,
-            pre_action_func=pre_action_func,
+            pre_action_func=comined_pre_run,
             post_load_func=post_load_func,
             post_run_func=combined_post_run
         )
