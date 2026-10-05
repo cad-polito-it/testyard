@@ -153,31 +153,7 @@ ifeq ($(benchmark),rocket-many-peripherals)
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
-    INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
-endif
-
-ifeq ($(benchmark),multisim-llc-chiplet)
-    generated_src_name ?= generated-src-$(technology_name)
-    CONFIG            ?= MultiSimLLCChipletRocketConfig
-    HAMMER_EXEC       = ./example-vlsi
-    TOOLS_CONF        ?= example-tools.yml
-    TECH_CONF         ?= ./technology/$(technology_name).yml
-    FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
-    DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
-    INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
-endif
-
-ifeq ($(benchmark),symmetric-rocket)
-    CONFIG            = SymmetricChipletRocketConfig
-    generated_src_name ?= generated-src-$(technology_name)
-    HAMMER_EXEC       = ./example-vlsi
-    TOOLS_CONF        ?= example-tools.yml
-    TECH_CONF         ?= ./technology/$(technology_name).yml
-    FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
-    DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
-    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(benchmark)
+    VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
 
