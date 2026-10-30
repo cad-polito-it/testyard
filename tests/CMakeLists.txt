@@ -85,6 +85,22 @@ add_executable(gcd gcd.c)
 add_executable(hello hello.c)
 add_executable(mt-hello mt-hello.c)
 add_executable(symmetric symmetric.c)
+add_executable(ctc-test ctc-test.c)
+add_executable(multi-ctc-test multi-ctc-test.c)
+add_executable(triple-chiplet triple-chiplet.c)
+
+# Work around the broken _REENT_SMALL exit path in the GCC 16 nano Newlib
+# shipped by the conda toolchain.
+set(NANO_TEST_TARGETS
+    pwm blkdev accum charcount nic-loopback big-blkdev pingd
+    streaming-passthrough streaming-fir nvdla spiflashread spiflashwrite
+    fft gcd hello mt-hello symmetric ctc-test multi-ctc-test triple-chiplet)
+foreach(target IN LISTS NANO_TEST_TARGETS)
+    set_property(TARGET ${target} APPEND PROPERTY SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/atexit-workaround.c)
+    set_property(TARGET ${target} APPEND_STRING PROPERTY LINK_FLAGS
+        " -Wl,--wrap=atexit")
+endforeach()
 
 #################################
 # Disassembly
@@ -123,6 +139,9 @@ add_dump_target(gcd)
 add_dump_target(hello)
 add_dump_target(mt-hello)
 add_dump_target(symmetric)
+add_dump_target(ctc-test)
+add_dump_target(multi-ctc-test)
+add_dump_target(triple-chiplet)
 
 
 # Add custom command to generate spiflash.img from spiflash.py
