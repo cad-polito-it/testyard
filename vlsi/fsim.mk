@@ -32,7 +32,7 @@ endif
 	echo "  tb_name: '$(FSIM_CAMPAIGN_DUT)'" >> $@
 	echo "  strobe_module: '$(STROBE_MODULE)' "
 	echo "  input_files:" >> $@
-	for x in $$(cat $(MODEL_MODS_FILELIST) | sort -u) $(TOP_SMEMS_FILE) $(MODEL_SMEMS_FILE) $(SIM_FILE_REQS); do \
+	for x in $$(cat $(MODEL_MODS_FILELIST) | sort -u) $(TOP_SMEMS_FILE) $(MODEL_SMEMS_FILE) $(SIM_FILE_REQS) $(EXTRA_SIM_SOURCES); do \
 		echo '    - "'$$x'"' >> $@; \
 	done
 	echo "  input_files_meta: 'append'" >> $@

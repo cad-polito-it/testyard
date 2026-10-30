@@ -96,7 +96,7 @@ class ManyPeripheralsRocketConfig2 extends Config(
 
 class ManyPeripheralsRocketConfig extends Config(
   new chipyard.harness.WithI2CTiedOff ++                    // Tie off the I2C port in the harness
-  new chipyard.config.WithGPIO ++                           // add GPIOs to the peripherybus
+  new chipyard.config.WithGPIO ++                           // add GPIOs to the peripherybus (NOT CORRECTLY MAPPED FOR ASAP7 TECH LIB)
   new chipyard.config.WithI2C ++                             // Add I2C peripheral
   new chipyard.config.WithPeripheryTimer ++                  // add the pwm timer device
   new freechips.rocketchip.subsystem.WithDefaultMMIOPort ++  // add default external master port
