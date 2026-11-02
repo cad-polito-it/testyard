@@ -362,6 +362,9 @@ class ExampleDriver(CLIDriver):
 
     def custom_synthesis_pre_run(self, driver: HammerDriver) -> None:
         """Custom pre-synthesis task: async -> sync reset in the CVA6 RTL."""
+        HammerVLSILogging.context("sync-reset").info("Skip the reset migration to async to sync")
+        return 
+        # Skip the reset migration to async to sync
         try:
             convert_cva6_async_resets(driver)
         except Exception as e:
@@ -382,9 +385,14 @@ class ExampleDriver(CLIDriver):
                         "tc_sram_00000010_00000031_00000008_00000001_00000001_none_0_1",
                         "tc_sram_wrapper_256_64_00000008_00000001_00000001_none_0",
                         "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_1",
+                        "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_2",
                         "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0_1",
                         "tc_sram_00000020_00000030_00000008_00000001_00000001_none_0_1",
                         "hpdcache_sram_wbyteenable_1rw_00000007_00000040_00000080",
+                        "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_3",
+                        "tc_sram_00000010_00000031_00000008_00000001_00000001_none_0_3",
+                        "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0_3",
+                        "tc_sram_00000020_00000030_00000008_00000001_00000001_none_0_3",
                         "hpdcache_sram_1rw_00000006_0000001c_00000040",
                         "hpdcache_sram_1rw",
                         "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0",
