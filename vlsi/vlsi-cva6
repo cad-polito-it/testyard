@@ -3,44 +3,121 @@
 # NOTE: this ExampleDriver works for CVA6 ONLY. 
 
 import os
+import sys
 from hammer.vlsi import CLIDriver, HammerTool, HammerToolHookAction, HammerDriver
 from hammer.vlsi.cli_driver import CLIActionConfigType
+from hammer.tech.specialcells import CellType
+from hammer.logging import HammerVLSILogging
 import re
 from pathlib import Path
 
+# remove_async_reset.py lives next to this driver
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from remove_async_reset import remove_async_reset
+
 
 from typing import Dict, Callable, Optional, List, Any
+
+# Only this RTL file is converted from asynchronous to synchronous reset
+CVA6_RTL_FILE = "CVA6CoreBlackbox.preprocessed.sv"
+
+
+def convert_cva6_async_resets(driver: HammerDriver) -> None:
+    """Turn the asynchronous resets of the CVA6 RTL into synchronous ones.
+
+    The ASAP7 scan cells (SDFH*) have no reset pin, so the reset edge is removed
+    from every flip-flop sensitivity list of CVA6CoreBlackbox.preprocessed.sv and a
+    `// synopsys sync_set_reset` directive is added per module. Design Compiler
+    then builds the reset as logic in front of the scan cell D pin
+    (compile_seqmap_honor_sync_set_reset true, set in add_options).
+
+    The syn_tool is not loaded yet during the pre-run, so the file list is read
+    from the same setting the tool will use: synthesis.inputs.input_files.
+    The file is modified in place; the original is kept as *.async_reset.bak.
+    Running it again on an already converted file changes nothing.
+    """
+    log = HammerVLSILogging.context("sync-reset")
+    db = driver.database
+
+    if db.get_setting("vlsi.core.technology") != "hammer.technology.asap7":
+        return
+
+    input_files = db.get_setting("synthesis.inputs.input_files")
+    targets = [Path(f) for f in input_files if Path(f).name == CVA6_RTL_FILE]
+    if not targets:
+        log.warning(f"{CVA6_RTL_FILE} not found in synthesis.inputs.input_files, nothing converted")
+        return
+
+    for path in targets:
+        if not path.is_file():
+            log.error(f"{path} does not exist")
+            continue
+
+        src = path.read_text(encoding="utf-8")
+        new, changes, warnings = remove_async_reset(src)
+
+        for w in warnings:
+            log.warning(f"{path.name}: {w}")
+
+        if not changes:
+            log.info(f"{path.name}: no asynchronous resets found (already converted?)")
+            continue
+
+        # Keep the original, then replace the file atomically
+        backup = path.with_name(path.name + ".async_reset.bak")
+        backup.write_text(src, encoding="utf-8")
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(new, encoding="utf-8")
+        tmp.replace(path)
+
+        resets = sorted({sig for c in changes for sig in c.get("signals", [])})
+        log.info(f"{path.name}: {len(changes)} flip-flop blocks converted to synchronous reset "
+                 f"(reset signals: {', '.join(resets)}); original saved as {backup.name}")
 
 def add_options(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
         # Needed by design compiler because asap7 has no three state cells
         if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
             x.append("set_app_var compile_assume_fully_decoded_three_state_busses true")
-    if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
-        x.append("set_app_var compile_assume_fully_decoded_three_state_busses true")
-        x.append("set_app_var test_validate_test_model_connectivity true")
-        # To correctly solve FF primitives
-        x.append("set_app_var compile_seqmap_identify_shift_registers_with_synchronous_logic true")
-        x.append("set_app_var compile_seqmap_identify_shift_registers true")
-        x.append("set_app_var hdlin_elaborate_black_box \"tc_sram\"")
-        x.append("set_app_var verilogout_no_tri true")
-        x.append("# Preserve FF with not load used as spare")
-        x.append("set_app_var hdlin_preserve_sequential ff+loop_variables")
-        x.append("set_app_var test_setup_additional_clock_pulse true")
-        x.append("set_app_var compile_seqmap_propagate_high_effort false")
-        x.append("set_app_var compile_restructure_sync_set_reset true")
-        x.append("set_app_var compile_seqmap_propagate_constants false")
+            x.append("set_app_var compile_seqmap_identify_shift_registers_with_synchronous_logic false")
+            x.append("set_app_var compile_seqmap_propagate_constants false")
+            x.append("set_app_var compile_seqmap_propagate_constants_size_only false")
+            x.append("set_app_var compile_seqmap_identify_shift_registers false")
+            x.append("set_app_var hdlin_elaborate_black_box \"tc_sram\"")
+            x.append("set_app_var verilogout_no_tri true")
+            x.append("# Preserve FF with not load used as spare")
+            # x.append("set_app_var hdlin_preserve_sequential ff+loop_variables")
+            x.append("set_app_var test_setup_additional_clock_pulse false")
+            x.append("set_app_var compile_seqmap_propagate_high_effort false")
+            x.append("set_app_var compile_restructure_sync_set_reset true")
+            x.append("set_app_var compile_seqmap_report_non_scan_mapping true")
+            x.append("set_app_var compile_seqmap_honor_sync_set_reset true")
+    else:
+        if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
+            x.append("set_app_var compile_assume_fully_decoded_three_state_busses true")
+            x.append("set_app_var test_validate_test_model_connectivity true")
+            # To correctly solve FF primitives
+            x.append("set_app_var compile_seqmap_identify_shift_registers_with_synchronous_logic true")
+            x.append("set_app_var compile_seqmap_identify_shift_registers true")
+            x.append("set_app_var hdlin_elaborate_black_box \"tc_sram\"")
+            x.append("set_app_var verilogout_no_tri true")
+            x.append("# Preserve FF with not load used as spare")
+            x.append("set_app_var hdlin_preserve_sequential ff+loop_variables")
+            x.append("set_app_var test_setup_additional_clock_pulse true")
+            x.append("set_app_var compile_seqmap_propagate_high_effort false")
+            x.append("set_app_var compile_restructure_sync_set_reset true")
+            x.append("set_app_var compile_seqmap_propagate_constants false")
     return True 
 
 def dont_touch_srams(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
         # The following can be summarized in x.append("set_app_var hdlin_elaborate_black_box \"tc_sram\"") during initialization
-        # x.append("foreach_in_collection ram [filter_collection [get_cells -hierarchical *] {full_name =~ \"*tc_sram\" }] {")
-        # x.append("set_attribute $ram is_memory_cell true")
-        # x.append("set_attribute $ram is_physical_black_box true" )
-        # x.append("set_attribute $ram is_logical_black_box true" )
-        # x.append("set_dont_touch $ram")
-        # x.append("}")
+        x.append("foreach_in_collection ram [filter_collection [get_cells -hierarchical *] {full_name =~ \"*tc_sram\" }] {")
+        x.append("set_attribute $ram is_memory_cell true")
+        x.append("set_attribute $ram is_physical_black_box true" )
+        x.append("set_attribute $ram is_logical_black_box true" )
+        x.append("set_dont_touch $ram")
+        x.append("}")
         #x.append("set_app_var hdlin_sv_interface_only_modules {filter_collection [get_cells -hierarchical *] {full_name =~ \"*tc_sram\" }}")
         # x.append("foreach_in_collection ram [get_references -hierarchical \"*hpdcahce_sram_1rw*\"] {")
         # x.append("set_attribute $ram is_memory_cell true")
@@ -53,17 +130,9 @@ def dont_touch_srams(x: HammerTool) -> bool:
         # x.append("set_attribute $ram is_physical_black_box true" )
         # x.append("set_dont_touch $ram")
         # x.append("}")
-        pass
     
     return True
 
-def connect_clk_en_reg(x: HammerTool) -> bool:
-    if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
-        x.append("set test_fix_bus true")
-        if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
-            x.append("disconnect_net [all_connected clock_en_reg/RESET] clock_en_reg/RESET")
-            x.append("connect_pin -from [get_nets n_debug_reset_syncd_debug_reset_sync_io_q ] -to clock_en_reg/RESET ")
-    return True
 
 def set_false_path(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
@@ -79,7 +148,15 @@ def set_false_path(x: HammerTool) -> bool:
         x.append("set_false_path -to [get_ports {system/tile_prci_domain/element_reset_domain_cva6_tile/core/rvfi_probes_o}]")
     return True
 
-def connect_test_mode_signals(x: HammerTool) -> bool:
+
+
+def connect_signals(x: HammerTool) -> bool:
+    if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
+        # x.append("set test_fix_bus true")
+        if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
+            x.append("disconnect_net [all_connected clock_en_reg/RESET] clock_en_reg/RESET")
+            x.append("connect_pin -from reset_io -to clock_en_reg/RESET ")
+    
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
         # Connect top level black box's signals (unconnected) to scan signals
         x.append("set pins [get_pins -hierarchical *test_en_i*]")
@@ -93,6 +170,13 @@ def connect_test_mode_signals(x: HammerTool) -> bool:
         x.append("disconnect_net [all_connected $pin] $pin")
         x.append("connect_pin -from [get_port test_mode ] -to $pin -port_name test_mode_i_custom_i")
         x.append("}")
+
+        x.append("set pins [get_pins -hierarchical *testmode_i*]")
+        x.append("foreach_in_collection pin $pins {")
+        x.append("disconnect_net [all_connected $pin] $pin")
+        x.append("connect_pin -from [get_port test_mode ] -to $pin -port_name test_mode_i_custom_i")
+        x.append("}")
+
 
         x.append("disconnect_net [all_connected gated_clock_debug_clock_gate/test_en] gated_clock_debug_clock_gate/test_en")
         x.append("connect_pin -from [get_port test_mode ] -to gated_clock_debug_clock_gate/test_en -port_name test_en_i_custom")
@@ -116,8 +200,6 @@ def insert_internal_memory_collar(x: HammerTool) -> bool:
                                             "\"*hpdcahce_sram_1rw*\"",
                                             "\"*hpdcache_sram_wmask_1rw*\"",
                                            ]))   
-    if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
-        x.append("identify_clock_gating")
     return True
 
 
@@ -130,7 +212,52 @@ def insert_nofaults_modules(x: HammerTool) -> bool:
                                 ".*hpdcache_sram_wmask_1rw.*",]
     return True
 
+def autofix_insert_dft(x: HammerTool) -> bool:
+    # If Dft is not enable skip it 
+    if not(x.get_setting("synthesis.dft_insertion")):
+        return True
+            
+    if x.get_setting("vlsi.core.technology") == "hammer.technology.asap7":
+        if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
+            x.append("set_dft_insertion_configuration -synthesis_optimization none ")
+            x.append("set_dft_configuration -fix_reset enable -fix_set enable -scan enable")
+            
+            x.append("set_dft_signal -view existing_dft -type Reset -port \"reset_io\"  -active_state 1")
+            x.append("set_dft_signal -view existing_dft -type Reset -port \"reset_io\" -hookup_pin  [ all_fanout -from system/tile_prci_domain/element_reset_domain_cva6_tile/core/rst -level 1 -flat -endpoints_only]   -hookup_sense inverted")
 
+        
+            x.append("set_autofix_configuration -type reset -method mux -control_signal test_mode -fix_latch enable ")
+            x.append("set_autofix_configuration -type set -method gate -control_signal test_mode  -fix_latch enable")
+            
+            x.append("create_test_protocol")
+            x.append("dft_drc")
+            x.append("run_test_point_analysis")
+            x.append("preview_dft")
+            x.append("insert_dft")
+            x.append("dft_drc")
+    else:
+        if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
+            x.append("set_dft_insertion_configuration -map_effort high -synthesis_optimization all -route_scan_enable true -route_scan_clock true -route_scan_serial true -preserve_design_name false -unscan true")
+            # Preview all test structures to be inserted
+            x.append("report_dft_configuration")
+            
+            # Insert DFT and write out design
+            x.append("create_test_protocol")
+            x.append("dft_drc -verbose")
+            x.append("preview_dft")
+            # runs TestMAX Advisor to compute test points
+            x.append("run_test_point_analysis")
+            x.append("preview_dft -test_points all")
+            x.append("preview_dft -show all -test_wrappers all")
+            
+            x.append("preview_dft ")
+            x.append("create_test_protocol")
+            x.append("dft_drc -verbose")
+            x.append("insert_dft")            
+    return True
+        
+
+        
 def remove_modules_streamed(
     file_path: str | Path,
     module_names: list[str] | set[str],
@@ -227,12 +354,24 @@ class ExampleDriver(CLIDriver):
             HammerTool.make_post_insertion_hook("init_environment", add_options),
             HammerTool.make_post_insertion_hook("elaborate_design", dont_touch_srams),
             HammerTool.make_post_insertion_hook("apply_constraints", set_false_path),
-            HammerTool.make_pre_insertion_hook("configure_dft", connect_clk_en_reg),
-            HammerTool.make_post_insertion_hook("configure_dft", connect_test_mode_signals),
-            HammerTool.make_post_insertion_hook("configure_dft", insert_internal_memory_collar)
+            HammerTool.make_post_insertion_hook("configure_dft", connect_signals),
+            HammerTool.make_post_insertion_hook("configure_dft", insert_internal_memory_collar),
+            HammerTool.make_replacement_hook("insert_dft", autofix_insert_dft),
         ]
         return extra_hooks
-    
+
+    def custom_synthesis_pre_run(self, driver: HammerDriver) -> None:
+        """Custom pre-synthesis task: async -> sync reset in the CVA6 RTL."""
+        HammerVLSILogging.context("sync-reset").info("Skip the reset migration to async to sync")
+        return 
+        # Skip the reset migration to async to sync
+        try:
+            convert_cva6_async_resets(driver)
+        except Exception as e:
+            # Stop here: synthesizing the unconverted RTL would leave unmapped (**FFGEN**) registers
+            HammerVLSILogging.context("sync-reset").error(f"Async-to-sync reset conversion failed: {e}")
+            raise
+
     # Customized synthesis action with a combined post run step for removing empty modules and facilitates lsim and fsim
     def custom_synthesis_post_run(self, driver: HammerDriver) -> None:
         """Custom post-synthesis task (e.g., netlist modification)."""
@@ -246,9 +385,14 @@ class ExampleDriver(CLIDriver):
                         "tc_sram_00000010_00000031_00000008_00000001_00000001_none_0_1",
                         "tc_sram_wrapper_256_64_00000008_00000001_00000001_none_0",
                         "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_1",
+                        "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_2",
                         "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0_1",
                         "tc_sram_00000020_00000030_00000008_00000001_00000001_none_0_1",
                         "hpdcache_sram_wbyteenable_1rw_00000007_00000040_00000080",
+                        "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_3",
+                        "tc_sram_00000010_00000031_00000008_00000001_00000001_none_0_3",
+                        "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0_3",
+                        "tc_sram_00000020_00000030_00000008_00000001_00000001_none_0_3",
                         "hpdcache_sram_1rw_00000006_0000001c_00000040",
                         "hpdcache_sram_1rw",
                         "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0",
@@ -284,10 +428,17 @@ class ExampleDriver(CLIDriver):
             # 2. Execute custom post-run logic
             self.custom_synthesis_post_run(driver)
 
+        def comined_pre_run(driver: HammerDriver) -> None:
+            # 1. Execute passed pre_run_func argument (if supplied)
+            if pre_action_func is not None:
+                pre_action_func(driver)
+
+            self.custom_synthesis_pre_run(driver)    
+
         # Delegate to super with the combined callback
         return super().create_synthesis_action(
             custom_hooks=custom_hooks,
-            pre_action_func=pre_action_func,
+            pre_action_func=comined_pre_run,
             post_load_func=post_load_func,
             post_run_func=combined_post_run
         )

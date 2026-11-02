@@ -69,7 +69,11 @@ ifeq ($(benchmark),cva6)
     TOOLS_CONF        ?= example-tools.yml
     TECH_CONF         ?= ./technology/$(technology_name).yml
     FSIM_CONF_FILE    ?= ./fsim/example-fsim-$(FAULT_MODEL).yml
+ifneq ($(technology_name),asap7)
+    DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain)-cva6.yml
+else
     DESIGN_CONFS      ?= ./example-designs/$(technology_name)-$(toolchain).yml
+endif 
     VLSI_OBJ_DIR      ?= build-$(technology_name)-$(toolchain)-$(benchmark)
     INPUT_CONFS       ?= $(TOOLS_CONF) $(TECH_CONF) $(DESIGN_CONFS) $(EXTRA_CONFS)
 endif
