@@ -1,3 +1,5 @@
+![TESTYARD](.img/TESTYARD_v1.svg)
+
 # Table of Contents
 - [Table of Contents](#table-of-contents)
 - [Setup instruction for testyard and hammer for the CAD's servers](#setup-instruction-for-testyard-and-hammer-for-the-cads-servers)

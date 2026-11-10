@@ -1,4 +1,4 @@
-![TESTYARD](.img/TESTYARD_v1.png)
+![TESTYARD](.img/TESTYARD_v1.svg)
 
 # VLSI Benchmarks for Hardware Testing
 
