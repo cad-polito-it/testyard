@@ -404,6 +404,10 @@ class ExampleDriver(CLIDriver):
                         "tc_sram_wrapper_cache_techno_00000010_00000200_00000008_00000001_00000001_none_1_0",
                         "tc_sram_wrapper_cache_techno_00000010_00000031_00000008_00000001_00000001_none_0_0",
                         "tc_sram_wrapper_256_64_00000008_00000001_00000001_none_0_0",
+                        "tc_sram_00000010_00000200_00000008_00000001_00000001_none_0_4",
+                        "tc_sram_00000010_00000031_00000008_00000001_00000001_none_0_4",
+                        "tc_sram_00000020_00000080_00000008_00000001_00000001_none_0_4",
+                        "tc_sram_00000020_00000030_00000008_00000001_00000001_none_0_4",
                 ])
             else:
                 driver.syn_tool.logger.warning(f"[Post-Synthesis] Netlist not found at: {mapped_v}")
