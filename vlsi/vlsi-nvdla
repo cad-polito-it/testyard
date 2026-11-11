@@ -22,7 +22,7 @@ def add_options(x: HammerTool) -> bool:
         x.append("set_app_var compile_seqmap_identify_shift_registers true")
         x.append("set_app_var verilogout_no_tri true")
         x.append("set_app_var test_setup_additional_clock_pulse true")
-        #x.append("set_app_var hdlin_elaborate_black_box \"nv_ram_*logical*\"")
+        x.append("set_app_var hdlin_elaborate_black_box \"nv_ram_*\"")
         x.append("set_app_var compile_seqmap_propagate_high_effort false")
         x.append("set_app_var compile_restructure_sync_set_reset true")
         x.append("set_app_var compile_seqmap_propagate_constants false")
@@ -57,12 +57,23 @@ def connect_black_box_signals(x: HammerTool) -> bool:
             # Inverters have single i/os
             input = gate_cells[-1].input_ports[-1]
             output = gate_cells[-1].output_ports[-1]
-            x.append(f"create_cell system/domain/nvdla/inv_rst  {x.technology.config.name}/{selected_cell}")
+            # The name from {x.technology.config.name} does not always reflect the name in the liberty file, the interest libs is always in the first position
+            if x.get_setting("vlsi.core.technology") != "hammer.technology.asap7":
+                x.append("set libs_name [get_object_name [get_libs]]")
+                x.append("set lib_name [lindex $libs_name 0]")
+                x.append(f"set lib_cell $lib_name/{selected_cell}")
+            else:
+                # Specific cell from a specific library
+                x.append("set lib_cell asap7sc7p5t_INVBUF_RVT_TT_nldm_201020/INVx5_ASAP7_75t_R")
+            x.append("create_cell system/domain/nvdla/inv_rst $lib_cell")
             x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/rstn] system/domain/nvdla/u_nvdla/rstn")
-            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/csb_rstn] system/domain/nvdla/u_nvdla/csb_rstn")
             x.append(f"connect_pin -from [get_port reset_io]  -to system/domain/nvdla/inv_rst/{input}  -port_name reset_io_i")    
             x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/rstn  -port_name reset_inverted_i")
-            x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/csb_rstn  -port_name reset_inverted_i_2")        
+
+            x.append("create_cell system/domain/nvdla/inv_rst2  $lib_cell")
+            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/csb_rstn] system/domain/nvdla/u_nvdla/csb_rstn")
+            x.append(f"connect_pin -from [get_port reset_io]  -to system/domain/nvdla/inv_rst2/{input}  -port_name reset_io_i")    
+            x.append(f"connect_pin -from system/domain/nvdla/inv_rst2/{output} -to system/domain/nvdla/u_nvdla/csb_rstn  -port_name reset_inverted_i_2")        
         else:
             x.logger.error("Current technology does not have any definitions for inverter cells")                                      
     return True
@@ -70,7 +81,7 @@ def connect_black_box_signals(x: HammerTool) -> bool:
 def insert_internal_memory_collar(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
         if x.get_setting("synthesis.insert_dft.memory_wrapper"):
-            x.append("set srams_tp [get_references -hierarchical -filter \"name =~ *nv_ram_*logical*\"]")
+            x.append("set srams_tp [get_references -hierarchical \"*nv_ram_rws*\"]")
             x.append("foreach_in_collection s $srams_tp {")
             x.append(x.insert_test_points(["$s"]))
             x.append("}")
