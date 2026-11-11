@@ -43,32 +43,6 @@ def connect_black_box_signals(x: HammerTool) -> bool:
         x.append("disconnect_net [all_connected $pin] $pin")                                                                                                  
         x.append("connect_pin -from [get_port test_mode]  -to $pin  -port_name test_mode_i_core")        
 
-        x.append("set_dft_drc_rules -ignore {TEST-504}")
-        x.append("set_dft_drc_rules -ignore {TEST-505}")
-        # There is an unexpected inversion on the reset line between the top-level and the block-level and dft insertion get lost.
-        # Create inverter cell with highest strength
-        gate_cells = x.technology.get_special_cell_by_type(CellType.CTSInverter)
-        if len(gate_cells) > 0:
-            selected_cell = gate_cells[-1].name[-1]
-            # Inverters have single i/os
-            input = gate_cells[-1].input_ports[-1]
-            output = gate_cells[-1].output_ports[-1]
-            x.append(f"create_cell system/domain/nvdla/inv_rst  {x.technology.config.name}/{selected_cell}")
-            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/rstn] system/domain/nvdla/u_nvdla/rstn")
-            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/csb_rstn] system/domain/nvdla/u_nvdla/csb_rstn")
-            x.append(f"connect_pin -from [get_port reset_io]  -to system/domain/nvdla/inv_rst/{input}  -port_name reset_io_i")    
-            x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/rstn  -port_name reset_inverted_i")
-            x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/csb_rstn  -port_name reset_inverted_i_2")        
-        else:
-            x.logger.error("Current technology does not have any definitions for inverter cells")                                      
-    return True
-def connect_black_box_signals(x: HammerTool) -> bool:
-    if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc": 
-    # Connect top level black box's signals (unconnected) to scan signals                     
-        x.append("set pin [get_pins system/domain/nvdla/u_nvdla/nvdla_top/test_mode]")                                                                        
-        x.append("disconnect_net [all_connected $pin] $pin")                                                                                                  
-        x.append("connect_pin -from [get_port test_mode]  -to $pin  -port_name test_mode_i_core")        
-
         # direct reset connection 
         x.append("set pin [get_pins system/domain/nvdla/u_nvdla/nvdla_top/direct_reset_]")    
         x.append("disconnect_net [all_connected $pin] $pin")                                                                                                  
