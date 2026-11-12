@@ -199,6 +199,7 @@ cd "$RDIR"
             software/coremark \
             software/firemarshal \
             software/spec2017 \
+            software/spec2026 \
             software/zephyrproject/zephyr \
             tools/dsptools \
             tools/rocket-dsp-utils \
@@ -255,7 +256,6 @@ cd "$RDIR"
 
     if [[ "$ENABLE_RADIANCE" -eq 1 ]] ; then
 	git submodule update --init --recursive generators/radiance || exit 1
-    git submodule update --init generators/gemmini || exit 1
     fi
 
     if [[ "$ENABLE_COMPRESSACC" -eq 1 ]] ; then

@@ -3,7 +3,7 @@ package chipyard
 import org.chipsalliance.cde.config.{Config}
 import freechips.rocketchip.diplomacy.{AddressSet}
 import freechips.rocketchip.subsystem.{SBUS}
-import testchipip.soc.{OBUS}
+import testchipip.soc.{OBUS, InwardAddressTranslatorParams, OutwardAddressTranslatorParams}
 
 // ------------------------------------------------
 // Configs demonstrating chip-to-chip communication
@@ -96,7 +96,6 @@ class MultiSimMultiLinkSymmetricChipletRocketConfig extends Config(
   new chipyard.harness.WithMultiChip(1, new MultiLinkSymmetricChipletRocketConfig)
 )
 
-
 // Core-only chiplet config, where the coherent memory is located on the LLC-chiplet
 class RocketCoreChipletConfig extends Config(
   new testchipip.serdes.WithSerialTL(Seq(
@@ -142,3 +141,57 @@ class MultiSimLLCChipletRocketConfig extends Config(
   new chipyard.harness.WithMultiChip(0, new RocketCoreChipletConfig) ++
   new chipyard.harness.WithMultiChip(1, new LLCChipletConfig)
 )
+
+// --------------------------------------------
+// ------------ IO Chiplet Example ------------
+// --------------------------------------------
+
+class ComputeChiplet1Config extends Config(
+  new chipyard.harness.WithCTCLoopback ++
+  new testchipip.soc.WithChipIdPinWidth(2) ++
+  new testchipip.soc.WithChipIdPin ++
+  new testchipip.ctc.WithCTC(Seq(new testchipip.ctc.CTCParams(
+    translationParams = InwardAddressTranslatorParams(chipID=1, offset=0x100000000L), 
+    offchip=Seq.tabulate(3)(i => AddressSet(0x100000000L << i, 0x100000000L - 1)), 
+    phyParams = None))) ++ 
+  new chipyard.RocketConfig
+)
+
+class ComputeChiplet2Config extends Config(
+  new chipyard.harness.WithCTCLoopback ++
+  new testchipip.soc.WithChipIdPinWidth(2) ++
+  new testchipip.soc.WithChipIdPin ++
+  new testchipip.ctc.WithCTC(Seq(new testchipip.ctc.CTCParams(
+    translationParams = InwardAddressTranslatorParams(chipID=2, offset=0x100000000L), 
+    offchip=Seq.tabulate(3)(i => AddressSet(0x100000000L << i, 0x100000000L - 1)), 
+    phyParams = None))) ++ 
+  new chipyard.RocketConfig
+)
+
+class IOChipletConfig extends Config(
+  new chipyard.harness.WithCTCTiedOff ++
+  new testchipip.soc.WithChipIdPinWidth(2) ++
+  new testchipip.soc.WithChipIdPin ++
+  new testchipip.ctc.WithCTC(Seq(
+    new testchipip.ctc.CTCParams(
+      translationParams = InwardAddressTranslatorParams(chipID=0, offset=0x100000000L), 
+      offchip=Seq(AddressSet(0x200000000L, 0x100000000L - 1)), 
+      phyParams = None), 
+    new testchipip.ctc.CTCParams(
+      translationParams = InwardAddressTranslatorParams(chipID=0, offset=0x100000000L), 
+      offchip=Seq(AddressSet(0x400000000L, 0x100000000L - 1)), 
+      phyParams = None)
+    )) ++ 
+  new chipyard.RocketConfig
+)
+
+class TripleChipletConfig extends Config(
+  new chipyard.harness.WithAbsoluteFreqHarnessClockInstantiator ++
+  new chipyard.harness.WithANDSuccessFn ++
+  new chipyard.harness.WithMultiChipCTC(chip0=1, chip1=0, chip0portId=0, chip1portId=0) ++ // C1 to IO port 0
+  new chipyard.harness.WithMultiChipCTC(chip0=2, chip1=0, chip0portId=0, chip1portId=1) ++ // C2 to IO port 1
+  new chipyard.harness.WithMultiChip(0, new IOChipletConfig) ++
+  new chipyard.harness.WithMultiChip(1, new ComputeChiplet1Config) ++
+  new chipyard.harness.WithMultiChip(2, new ComputeChiplet2Config) 
+)
+

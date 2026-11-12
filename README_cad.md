@@ -41,8 +41,9 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
     $ cd hammer 
     $ git checkout working/cad_servers
     ```
-2. Install conda environment from ``$HOME`` dir:
-    ```bash 
+2. Install conda environment from ``$HOME`` dir (You **need** an active internet connection):
+    ```bash
+    cd ~
     wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     bash Miniconda3-latest-Linux-x86_64.sh  
     rm -f Miniconda3-latest-Linux-x86_64.sh  
@@ -51,14 +52,27 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
     ```bash
     export PATH=${PATH}:${HOME}/miniconda3/bin/                                    
     ```
-3. Download the testyard repository  
+    Please check if ``conda-lock`` is available:
+   ```bash
+   which conda-lock
+   ```
+   If it is not available install it:
+   ```bash
+   conda install conda-forge::conda-lock
+   ```
+   Before continuing the installation, you may need to activte the base conda env:
+   ```bash
+   source ${HOME}/miniconda3/bin/activate
+   ```
+   
+4. Download the testyard repository  
     ```bash 
     $ git clone git@github.com:cad-polito-it/testyard.git
     $ cd testyard
     $ git checkout working/cad_servers
     ```
 
-4. Install the neeeded tools for testyard by running 
+5. Install the neeeded tools for testyard by running 
     ```bash 
     $ cd testyard 
     $ ./scripts/build-setup.sh riscv-tools -s 6 -s 7 -s 8 -s 9 
@@ -70,7 +84,7 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
     **Now you can activate your conda environment by sourcing the env.sh file in the testyard folder**
 
 
-5. Download the OpenRoad repository for generating technology-related rams 
+6. Download the OpenRoad repository for generating technology-related rams 
     ```bash 
     cd ~
     git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD.git 
@@ -98,13 +112,13 @@ In the following ``git clone`` commands, it is assumed that SSH-keys are configu
    ```
 
     **This is a hard hack for the moment**
-6. Install and use the specific patched hammer version (**IMPORTANT**):
+7. Install and use the specific patched hammer version (**IMPORTANT**):
    ```bash 
     cd testyard/vlsi/
     ./install_plugins.sh hammer_root_dir
     ```
     
-7. In order to use the ASAP7 technology library, you need to install `gdstk` or `gdspy`.
+8. In order to use the ASAP7 technology library, you need to install `gdstk` or `gdspy`.
     Either the `gdstk` or `gdspy` GDS manipulation utility is required for 4x database downscaling. `gdstk` (available [here on GitHub](https://github.com/heitzmann/gdstk), version >0.6) is highly recommended; however, because it is more difficult to install, `gdspy` (available [here on Github](https://github.com/heitzmann/gdspy/releases), specifically version 1.4 can also be used instead, but it is much slower.
     You can install `gdstk` as following:
     ```bash 
