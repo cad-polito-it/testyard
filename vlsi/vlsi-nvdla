@@ -4,8 +4,12 @@
 
 import os
 
-from hammer.vlsi import CLIDriver, HammerTool, HammerToolHookAction
+from hammer.vlsi import CLIDriver, HammerTool, HammerDriver, HammerToolHookAction
 from hammer.tech.specialcells import CellType
+from hammer.vlsi.cli_driver import CLIActionConfigType
+import re
+from collections.abc import Iterable, Iterator
+from pathlib import Path
 
 
 from typing import Dict, Callable, Optional, List
@@ -22,7 +26,7 @@ def add_options(x: HammerTool) -> bool:
         x.append("set_app_var compile_seqmap_identify_shift_registers true")
         x.append("set_app_var verilogout_no_tri true")
         x.append("set_app_var test_setup_additional_clock_pulse true")
-        #x.append("set_app_var hdlin_elaborate_black_box \"nv_ram_*logical*\"")
+        x.append("set_app_var hdlin_elaborate_black_box \"nv_ram_*\"")
         x.append("set_app_var compile_seqmap_propagate_high_effort false")
         x.append("set_app_var compile_restructure_sync_set_reset true")
         x.append("set_app_var compile_seqmap_propagate_constants false")
@@ -36,32 +40,6 @@ def connect_clk_en_reg(x: HammerTool) -> bool:
             x.append("connect_pin -from [get_nets n_debug_reset_syncd_debug_reset_sync_io_q ] -to clock_en_reg/RESET ")
     return True
     
-def connect_black_box_signals(x: HammerTool) -> bool:
-    if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc": 
-    # Connect top level black box's signals (unconnected) to scan signals                     
-        x.append("set pin [get_pins system/domain/nvdla/u_nvdla/nvdla_top/test_mode]")                                                                        
-        x.append("disconnect_net [all_connected $pin] $pin")                                                                                                  
-        x.append("connect_pin -from [get_port test_mode]  -to $pin  -port_name test_mode_i_core")        
-
-        x.append("set_dft_drc_rules -ignore {TEST-504}")
-        x.append("set_dft_drc_rules -ignore {TEST-505}")
-        # There is an unexpected inversion on the reset line between the top-level and the block-level and dft insertion get lost.
-        # Create inverter cell with highest strength
-        gate_cells = x.technology.get_special_cell_by_type(CellType.CTSInverter)
-        if len(gate_cells) > 0:
-            selected_cell = gate_cells[-1].name[-1]
-            # Inverters have single i/os
-            input = gate_cells[-1].input_ports[-1]
-            output = gate_cells[-1].output_ports[-1]
-            x.append(f"create_cell system/domain/nvdla/inv_rst  {x.technology.config.name}/{selected_cell}")
-            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/rstn] system/domain/nvdla/u_nvdla/rstn")
-            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/csb_rstn] system/domain/nvdla/u_nvdla/csb_rstn")
-            x.append(f"connect_pin -from [get_port reset_io]  -to system/domain/nvdla/inv_rst/{input}  -port_name reset_io_i")    
-            x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/rstn  -port_name reset_inverted_i")
-            x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/csb_rstn  -port_name reset_inverted_i_2")        
-        else:
-            x.logger.error("Current technology does not have any definitions for inverter cells")                                      
-    return True
 def connect_black_box_signals(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc": 
     # Connect top level black box's signals (unconnected) to scan signals                     
@@ -83,12 +61,23 @@ def connect_black_box_signals(x: HammerTool) -> bool:
             # Inverters have single i/os
             input = gate_cells[-1].input_ports[-1]
             output = gate_cells[-1].output_ports[-1]
-            x.append(f"create_cell system/domain/nvdla/inv_rst  {x.technology.config.name}/{selected_cell}")
+            # The name from {x.technology.config.name} does not always reflect the name in the liberty file, the interest libs is always in the first position
+            if x.get_setting("vlsi.core.technology") != "hammer.technology.asap7":
+                x.append("set libs_name [get_object_name [get_libs]]")
+                x.append("set lib_name [lindex $libs_name 0]")
+                x.append(f"set lib_cell $lib_name/{selected_cell}")
+            else:
+                # Specific cell from a specific library
+                x.append("set lib_cell asap7sc7p5t_INVBUF_RVT_TT_nldm_201020/INVx5_ASAP7_75t_R")
+            x.append("create_cell system/domain/nvdla/inv_rst $lib_cell")
             x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/rstn] system/domain/nvdla/u_nvdla/rstn")
-            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/csb_rstn] system/domain/nvdla/u_nvdla/csb_rstn")
             x.append(f"connect_pin -from [get_port reset_io]  -to system/domain/nvdla/inv_rst/{input}  -port_name reset_io_i")    
             x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/rstn  -port_name reset_inverted_i")
-            x.append(f"connect_pin -from system/domain/nvdla/inv_rst/{output} -to system/domain/nvdla/u_nvdla/csb_rstn  -port_name reset_inverted_i_2")        
+
+            x.append("create_cell system/domain/nvdla/inv_rst2  $lib_cell")
+            x.append("disconnect_net [all_connected system/domain/nvdla/u_nvdla/csb_rstn] system/domain/nvdla/u_nvdla/csb_rstn")
+            x.append(f"connect_pin -from [get_port reset_io]  -to system/domain/nvdla/inv_rst2/{input}  -port_name reset_io_i")    
+            x.append(f"connect_pin -from system/domain/nvdla/inv_rst2/{output} -to system/domain/nvdla/u_nvdla/csb_rstn  -port_name reset_inverted_i_2")        
         else:
             x.logger.error("Current technology does not have any definitions for inverter cells")                                      
     return True
@@ -96,7 +85,7 @@ def connect_black_box_signals(x: HammerTool) -> bool:
 def insert_internal_memory_collar(x: HammerTool) -> bool:
     if x.get_setting("vlsi.core.synthesis_tool") == "hammer.synthesis.dc":
         if x.get_setting("synthesis.insert_dft.memory_wrapper"):
-            x.append("set srams_tp [get_references -hierarchical -filter \"name =~ *nv_ram_*logical*\"]")
+            x.append("set srams_tp [get_references -hierarchical \"*nv_ram_rws*\"]")
             x.append("foreach_in_collection s $srams_tp {")
             x.append(x.insert_test_points(["$s"]))
             x.append("}")
@@ -114,17 +103,30 @@ def add_black_boxes(x: HammerTool) -> bool:
         # This is equivalent of setting the nv_ram_*logical* as black boxes with x.append("set_app_var hdlin_elaborate_black_box \"nv_ram_*logical*\"")
         # The only difference is an additional step executed at the end of synthesis to
         # remove empty modules (see vlsi-cva6) to simplify simulation.
-        x.append("remove_design [get_designs -hierarchical -filter \"name =~ *nv_ram_*logical*\"]")
-        x.append("foreach f [glob -nocomplain ./WORK/nv_ram_*logical* ./WORK/nv_ram_*logical*] {")
-        x.append("    file delete -force $f")
-        x.append("}")
-        x.append("link")
-        x.append("foreach_in_collection ram [get_references -hierarchical -filter \"name =~ *nv_ram_*logical*\"] {")
-        x.append("  set_attribute $ram is_memory_cell true")
-        x.append("  set_attribute $ram is_logical_black_box true" )
-        x.append("  set_attribute $ram is_physical_black_box true" )
-        x.append("  set_dont_touch $ram")
-        x.append("}")
+        rams = ["nv_ram_rws_256x3",
+                "nv_ram_rwsp_8x65",
+                "nv_ram_rwsthp_80x9",
+                "nv_ram_rwsthp_80x17",
+                "nv_ram_rwsthp_60x21",
+                "nv_ram_rwsthp_20x4",
+                "nv_ram_rwsp_128x6",
+                "nv_ram_rwsp_128x11",
+                "nv_ram_rwsp_16x14",
+                "nv_ram_rwsp_16x16",
+                "nv_ram_rwsp_16x65",]
+        for ram in rams:
+            x.append(f"remove_design [get_designs -hierarchical -filter \"name =~ *{ram}*\"]")
+            x.append(f"foreach f [glob -nocomplain ./WORK/*{ram}* ] {{")
+            x.append("    file delete -force $f")
+            x.append("    link")
+            x.append("}")
+            x.append(f"foreach_in_collection ram [get_references -hierarchical -filter \"name =~ *{ram}*\"] {{")
+            x.append("  set_attribute $ram is_memory_cell true")
+            x.append("  set_attribute $ram is_logical_black_box true" )
+            x.append("  set_attribute $ram is_physical_black_box true" )
+            x.append("  set_dont_touch $ram")
+            x.append("}")
+        
     return True 
 
 def insert_nofaults_modules(x: HammerTool) -> bool:
@@ -137,6 +139,160 @@ def add_constraints(x: HammerTool) -> bool:
     # x.append("add_pi_constraints 1 test_se")
     return True
 
+MODULE_PATTERN = re.compile(r"\bmodule\s+([A-Za-z_]\w*)\b")
+ENDMODULE_PATTERN = re.compile(r"\bendmodule\b")
+# "<base>_<N>" -> instantiate <base> with parameter N
+SUFFIX_PATTERN = re.compile(r"^(?P<base>.+)_(?P<param>\d+)$")
+COMMENT_PATTERN = re.compile(r"//[^\n]*|/\*.*?\*/", re.DOTALL)
+
+INSTANCE_NAME = "ram_inst"
+
+
+def _iter_blocks(lines: Iterable[str]) -> Iterator[tuple[str | None, list[str]]]:
+    """Yield ``(module_name, lines)`` blocks.
+
+    Lines outside any module are yielded one by one with ``module_name=None``.
+    A module is yielded as one block from its ``module`` line up to and
+    including its ``endmodule`` line.
+    """
+    name: str | None = None
+    block: list[str] = []
+
+    for line in lines:
+        if name is None:
+            match = MODULE_PATTERN.search(line)
+            if not match:
+                yield None, [line]
+                continue
+            name, block = match.group(1), [line]
+        else:
+            block.append(line)
+
+        if ENDMODULE_PATTERN.search(line):
+            yield name, block
+            name, block = None, []
+
+    if name is not None:  # unterminated module at EOF
+        yield name, block
+
+
+def _balanced_parens(text: str, start: int) -> tuple[str, int]:
+    """Return (inner text, index after closing paren) for text[start] == '('."""
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "(":
+            depth += 1
+        elif text[i] == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start + 1 : i], i + 1
+    raise ValueError("Unbalanced parentheses in module header")
+
+
+def _extract_port_names(module_text: str, module_name: str) -> list[str]:
+    """Extract port names from the module header (ANSI and non-ANSI style)."""
+    text = COMMENT_PATTERN.sub(" ", module_text)
+    pos = MODULE_PATTERN.search(text).end()
+
+    def skip_ws(p: int) -> int:
+        while p < len(text) and text[p].isspace():
+            p += 1
+        return p
+
+    pos = skip_ws(pos)
+    if text.startswith("#", pos):  # skip parameter list: #( ... )
+        pos = skip_ws(pos + 1)
+        _, pos = _balanced_parens(text, pos)
+        pos = skip_ws(pos)
+
+    if not text.startswith("(", pos):  # no port list: "module foo;"
+        return []
+
+    inner, _ = _balanced_parens(text, pos)
+    inner = re.sub(r"\[[^\]]*\]", " ", inner)  # drop [..] ranges
+
+    ports = []
+    for item in inner.split(","):
+        words = re.findall(r"[A-Za-z_]\w*", item)
+        if words:
+            ports.append(words[-1])  # last identifier is the port name
+    return ports
+
+
+def _add_instance(block: list[str], base: str, param: str) -> list[str]:
+    """Insert an instance of ``base`` right before ``endmodule``."""
+    module_name = MODULE_PATTERN.search(block[0]).group(1)
+    ports = _extract_port_names("".join(block), module_name)
+    connections = ", ".join(f".{p}({p})" for p in ports)
+    instance = f"{base} #({param}) {INSTANCE_NAME} ( {connections} );"
+
+    last = block[-1]
+    match = ENDMODULE_PATTERN.search(last)
+    if not match:  # unterminated module: leave untouched
+        return block
+
+    prefix = last[: match.start()]
+    if prefix.strip():  # declaration and endmodule share a line
+        prefix += "\n"
+
+    block[-1] = f"{prefix}{instance}\n{last[match.start():]}"
+    return block
+
+
+def remove_modules_streamed(
+    file_path: str | Path,
+    module_names: list[str] | set[str],
+) -> None:
+    """Remove modules from a Verilog/SystemVerilog file and wrap their variants.
+
+    - A module whose name exactly matches an entry in ``module_names`` is removed.
+    - A module named ``<name>_<N>`` where ``<name>`` is in ``module_names`` is
+      kept, and an instance ``<name> #(<N>) ram_inst ( .port, ... );`` is
+      inserted before its ``endmodule``.
+
+    The file is processed one module at a time and written to a temporary file
+    next to the input, which atomically replaces the original on success.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``file_path`` does not exist.
+    ValueError
+        If ``module_names`` is empty.
+    """
+    input_path = Path(file_path)
+
+    if not input_path.is_file():
+        raise FileNotFoundError(f"Input file does not exist: {input_path}")
+    if not module_names:
+        raise ValueError("module_names must contain at least one module name")
+
+    module_names = set(module_names)
+    temp_path = input_path.with_name(input_path.name + ".tmp")
+
+    try:
+        with (
+            input_path.open("r", encoding="utf-8") as infile,
+            temp_path.open("w", encoding="utf-8") as outfile,
+        ):
+            for name, block in _iter_blocks(infile):
+                if name is not None:
+                    if name in module_names:
+                        continue  # exact match: drop the module
+
+                    suffix = SUFFIX_PATTERN.match(name)
+                    if suffix and suffix["base"] in module_names:
+                        block = _add_instance(block, suffix["base"], suffix["param"])
+
+                outfile.writelines(block)
+
+        temp_path.replace(input_path)
+
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+
 class ExampleDriver(CLIDriver):
     def get_extra_synthesis_hooks(self) -> List[HammerToolHookAction]:
         extra_hooks = [
@@ -147,7 +303,65 @@ class ExampleDriver(CLIDriver):
             HammerTool.make_post_insertion_hook("configure_dft", connect_black_box_signals)
         ]
         return extra_hooks
+    # Customized synthesis action with a combined post run step for removing empty modules and facilitates lsim and fsim
+    def custom_synthesis_post_run(self, driver: HammerDriver) -> None:
+        """Custom post-synthesis task (e.g., netlist modification)."""
+        try:
+            top_module = driver.syn_tool.top_module
+            mapped_v = os.path.join(driver.obj_dir, "syn-rundir", "results" , f"{top_module}.mapped.v")
 
+            if os.path.exists(mapped_v):
+                driver.syn_tool.logger.info(f"[Post-Synthesis] ,tripping empty SRAM modules from {mapped_v}")
+                remove_modules_streamed(mapped_v, [ 
+                        "nv_ram_rwsp_16x65",
+                        "nv_ram_rwsp_16x16",
+                        "nv_ram_rwsp_16x14",
+                        "nv_ram_rwsp_128x11",
+                        "nv_ram_rwsthp_20x4",
+                        "nv_ram_rwsthp_60x21",
+                        "nv_ram_rwsthp_80x17",
+                        "nv_ram_rwsthp_80x9",
+                        "nv_ram_rwsp_128x6",
+                        "nv_ram_rwsp_8x65",
+                        "nv_ram_rws_256x3",
+                        "nv_ram_rws_128x18",
+                        "nv_ram_rwst_256x8",
+                        "nv_ram_rws_16x256",
+                        "nv_ram_rws_16x272",
+                        "nv_ram_rws_16x64",
+                        "nv_ram_rws_256x64",
+                ])
+            else:
+                driver.syn_tool.logger.warning(f"[Post-Synthesis] Netlist not found at: {mapped_v}")
+        except Exception as e:
+            driver.syn_tool.logger.error(f"[Post-Synthesis] Exception during netlist processing: {e}")
+
+    # Override internal declaration in CLIDriver 
+    def create_synthesis_action(
+        self,
+        custom_hooks: List[HammerToolHookAction],
+        pre_action_func: Optional[Callable[[HammerDriver], None]] = None,
+        post_load_func: Optional[Callable[[HammerDriver], None]] = None,
+        post_run_func: Optional[Callable[[HammerDriver], None]] = None
+    ) -> CLIActionConfigType:
+
+        # Combine passed post_run_func argument with the custom post-run logic
+        def combined_post_run(driver: HammerDriver) -> None:
+            # 1. Execute passed post_run_func argument (if supplied)
+            if post_run_func is not None:
+                post_run_func(driver)
+
+            # 2. Execute custom post-run logic
+            self.custom_synthesis_post_run(driver)
+
+        # Delegate to super with the combined callback
+        return super().create_synthesis_action(
+            custom_hooks=custom_hooks,
+            pre_action_func=pre_action_func,
+            post_load_func=post_load_func,
+            post_run_func=combined_post_run
+        )
+    
     def get_extra_atpg_hooks(self) -> List[HammerToolHookAction]:
         extra_hooks = [
             HammerTool.make_pre_insertion_hook("run_drc", add_constraints),
