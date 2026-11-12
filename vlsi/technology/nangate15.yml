@@ -6,3 +6,22 @@ technology.nangate15.install_dir: "/data/libraries/NangateOpenCellLibrary_15_45_
 
 # For generating fake srams
 vlsi.core.sram_generator_tool: "hammer.sram_generator.generic_generator"
+
+# Used to select the correct operating condition for different corners!
+# CHANGE AT YOUR OWN RISK!
+# vlsi:
+#   inputs:
+#     VDD: "0.8 V"
+#     GND: "0.0 V"
+    
+
+vlsi.inputs.mmmc_corners:
+ [
+      {
+        "name": "typ_0P8V_25C",
+        "type": "extra",
+        "voltage": "0.8 V",
+        "temp": "25 C"
+      }
+ ]
+  
