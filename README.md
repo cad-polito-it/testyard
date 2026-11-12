@@ -163,7 +163,7 @@ make atpg-syn benchmark=${BENCH} technology_name=${TECH} toolchain=${TOOLCHAIN} 
 ---
 ## Citation
 
-If you use this framework in your research, please cite the following publication (not yet available in IEEExplorer, presented at [IEEE ETS 2026](https://ets2026.uniwa.gr/conference-program/)):
+If you use this framework in your research, please cite the following publication (presented at [IEEE ETS 2026](https://ets2026.uniwa.gr/conference-program/)):
 
 ```
 @INPROCEEDINGS{11591740,
@@ -176,7 +176,6 @@ If you use this framework in your research, please cite the following publicatio
   pages={1-10},
   keywords={Modeling;Testing;Design methodology;Hardware;Complexity theory;Printing;Simulation;Accuracy;Computer architecture;Architecture;Testing;Reliability;Benchmarks;RISC-V},
   doi={10.1109/ETS69887.2026.11591740}}
-
 ```
 
 
