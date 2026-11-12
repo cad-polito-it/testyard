@@ -49,6 +49,14 @@ def connect_clk_en_reg(x: HammerTool) -> bool:
             x.append("connect_pin -from [get_nets n_debug_reset_syncd_debug_reset_sync_io_q ] -to clock_en_reg/RESET ")
     return True
 
+def empty_fault_generation (x: HammerTool) -> bool:
+    x.logger.info("Skipping fault generation")
+    import shutil
+    sff_report_path = os.path.join(x.run_dir, x.fault_model + "_" + x.campaign_tb_dut.split(".")[-1] + ".sff")
+    shutil.copy(x.standard_fault_format, sff_report_path)
+    x.standard_fault_format = sff_report_path
+    return True
+
 class ExampleDriver(CLIDriver):
     def get_extra_par_hooks(self) -> List[HammerToolHookAction]:
         extra_hooks = [
@@ -78,6 +86,14 @@ class ExampleDriver(CLIDriver):
 
         ]
         return extra_hooks
+
+    def get_extra_fsim_hooks(self) -> List[HammerToolHookAction]:
+        extra_hooks = [
+            # Example on how to skip the fault generation step for fsim
+            # HammerTool.make_replacement_hook("fgen", empty_fault_generation)
+        ]
+        return extra_hooks
+
 
 if __name__ == '__main__':
     ExampleDriver().main()

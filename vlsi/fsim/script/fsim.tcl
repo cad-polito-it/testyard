@@ -4,7 +4,7 @@ set_config -fsim_mode concurrent
 set_config -update_interval 120 ; # in seconds
 set_config -enable_intermediate_results 1
 ## DYNAMIC RUNTIME - Do not modify from this! The __init__.py checks for the args string to parse the required arguments
-create_testcases -name {"test1"} \
+create_testcases -name {test1} \
     -exec ./simv \
     -args ""
 
