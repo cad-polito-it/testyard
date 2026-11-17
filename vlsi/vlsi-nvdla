@@ -224,7 +224,12 @@ def _add_instance(block: list[str], base: str, param: str) -> list[str]:
     module_name = MODULE_PATTERN.search(block[0]).group(1)
     ports = _extract_port_names("".join(block), module_name)
     connections = ", ".join(f".{p}({p})" for p in ports)
-    instance = f"{base} #({param}) {INSTANCE_NAME} ( {connections} );"
+    # Pragmas commonly accepted, this for avoiding read issues during static timing analysis
+    instance = (
+        "// synopsys translate_off\n"
+        f"{base} #({param}) {INSTANCE_NAME} ( {connections} );\n"
+        "// synopsys translate_on"
+    )
 
     last = block[-1]
     match = ENDMODULE_PATTERN.search(last)
